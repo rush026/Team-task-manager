@@ -1,80 +1,62 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
 
 export default function Dashboard() {
   const { data: session } = useSession();
   const [projects, setProjects] = useState([]);
-  const [projectName, setProjectName] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const [users, setUsers] = useState([]); // Task assign karne ke liye
 
-  // Projects load karne ka function
-  const fetchProjects = async () => {
-    const res = await fetch("/api/projects");
-    const data = await res.json();
-    setProjects(data);
+  // Data load karne ka function
+  const loadData = async () => {
+    const [pRes, tRes] = await Promise.all([
+      fetch("/api/projects"),
+      fetch("/api/tasks")
+    ]);
+    setProjects(await pRes.json());
+    setTasks(await tRes.json());
   };
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const handleCreateProject = async () => {
-    if (!projectName) return alert("Ass project");
-    
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      body: JSON.stringify({ name: projectName }),
-    });
-
-    if (res.ok) {
-      setProjectName("");
-      fetchProjects(); // List update karo
-      alert("Project is ready!");
-    }
-  };
+  useEffect(() => { loadData(); }, []);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between mb-8">
-        <h1 className="text-2xl font-bold">Manager Dashboard</h1>
-        <button onClick={() => signOut()} className="text-red-500">Logout</button>
-      </div>
-
-      {/* Admin Section */}
-      {session?.user?.role === "ADMIN" && (
-        <div className="mb-10 p-6 border rounded-xl bg-gray-50">
-          <h2 className="text-lg font-bold mb-4">Create New Project (Admin Only)</h2>
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Project Name" 
-              className="border p-2 flex-1 rounded"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-            />
-            <button 
-              onClick={handleCreateProject}
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Add Project
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow-lg">
+        <div className="flex justify-between items-center border-b pb-4 mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">🚀 Project Manager</h1>
+          <button onClick={() => signOut()} className="text-red-500 font-semibold">Logout</button>
         </div>
-      )}
 
-      {/* Projects List */}
-      <div>
-        <h2 className="text-xl font-bold mb-4">All Projects</h2>
-        <div className="grid gap-4">
-          {projects.map((proj: any) => (
-            <div key={proj.id} className="p-4 border rounded shadow-sm flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-lg">{proj.name}</h3>
-                <p className="text-sm text-gray-500">Tasks: {proj.tasks?.length || 0}</p>
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Column 1: Projects */}
+          <div className="col-span-1 border-r pr-4">
+            <h2 className="font-bold text-lg mb-4">Projects</h2>
+            {projects.map((p: any) => (
+              <div key={p.id} className="p-3 bg-blue-50 mb-2 rounded border border-blue-100 text-sm">
+                {p.name}
               </div>
-              <button className="text-blue-500 text-sm font-medium">View Details</button>
+            ))}
+          </div>
+
+          {/* Column 2 & 3: Tasks List */}
+          <div className="col-span-2">
+            <h2 className="font-bold text-lg mb-4">Current Tasks</h2>
+            <div className="space-y-3">
+              {tasks.length === 0 && <p className="text-gray-400">Abhi koi task nahi hai.</p>}
+              {tasks.map((t: any) => (
+                <div key={t.id} className="flex justify-between items-center p-4 border rounded-lg shadow-sm">
+                  <div>
+                    <p className="font-bold">{t.title}</p>
+                    <p className="text-xs text-gray-500">Project: {t.project.name} | Assignee: {t.assignee.email}</p>
+                  </div>
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">
+                    {t.status}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>
